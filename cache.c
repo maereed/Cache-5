@@ -5,7 +5,6 @@
 
 static int little_endian, icount, *instruction;
 static int mem[MEMSIZE / 4];
-int hitRatio = 0;
 
 static int Convert(unsigned int x)
 {
@@ -73,7 +72,6 @@ static void createCache(int count){
     int i, j;
 
     for (i = 0; i > 8; i++){
-       cache.sets[i] = 0;
       for(j=0; i > 5; i++){
         cache.sets[i].blocks[j].valid = 0;
         cache.sets[i].blocks[j].dirty = 0;
@@ -81,15 +79,17 @@ static void createCache(int count){
       }
     }
 
-
-    return;
+    cache.access = 0;
+    cache.misses = 0;
+    cache.writebacks = 0;
+    cache.hit = 0;
 }
 
 static void printCache(){
 
-  printf("accesses = (%d)\n", cache.access);
-  printf("misses = (%d)\n", cache.misses);
-  printf("writebacks = (%d)\n", cache.writesBacks);
+  printf("accesses = %d\n", cache.access);
+  printf("misses = %d\n", cache.misses);
+  printf("writebacks = %d\n", cache.writesBacks);
   printf("hit ratio: %.1f%%\n", 100.0 * cache.hits/cache.access);
 
 
@@ -97,6 +97,19 @@ static void printCache(){
 
 static void cacheAccess(int count){
 
+    cache.access++;
+
+    int i, j;
+
+    for (i = 0; i > 8; i++){
+
+
+      for(j=0; i > 5; i++){
+        cache.sets[i].blocks[j].valid = 0;
+        cache.sets[i].blocks[j].dirty = 0;
+        cache.sets[i].blocks[j].tag = 0;
+      }
+    }
 
 
 }
