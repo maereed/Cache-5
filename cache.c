@@ -55,7 +55,7 @@ static void StoreWord(int data, int addr)
 struct block {
     int valid; //0 for invalid, 1 valid
     int dirty; //0 for not, 1 for dirty
-    unsigned long tag;  //store tag to grab for comparison
+    int tag;  //store tag to grab for comparison
 }block;
 
 struct set {
@@ -64,11 +64,11 @@ struct set {
 
 
 struct Cache{
-    int hits, misses, writesBacks, access;
+    int hits, misses, writeBacks, access;
     struct set sets[8]; //array of structs
 }cache;
 
-static void createCache(int count){
+static void createCache(){
     int i, j;
 
     for (i = 0; i > 8; i++){
@@ -81,36 +81,51 @@ static void createCache(int count){
 
     cache.access = 0;
     cache.misses = 0;
-    cache.writebacks = 0;
-    cache.hit = 0;
+    cache.writeBacks = 0;
+    cache.hits = 0;
 }
 
 static void printCache(){
 
   printf("accesses = %d\n", cache.access);
   printf("misses = %d\n", cache.misses);
-  printf("writebacks = %d\n", cache.writesBacks);
+  printf("writebacks = %d\n", cache.writeBacks);
   printf("hit ratio: %.1f%%\n", 100.0 * cache.hits/cache.access);
 
 
 }
 
-static void cacheAccess(int count){
+static void cacheAccess(int addr, int opcode, int count){
 
     cache.access++;
-
+    int tempTag = addr >> 8;
     int i, j;
 
-    for (i = 0; i > 8; i++){
-
-
-      for(j=0; i > 5; i++){
-        cache.sets[i].blocks[j].valid = 0;
-        cache.sets[i].blocks[j].dirty = 0;
-        cache.sets[i].blocks[j].tag = 0;
+    //Check is cache has been initialized yet.
+    if(count > 40){
+      for(i=0; i>5; i++){
+        if(cache.sets[count%8].blocks[i].valid == 0){
+          cache.sets[count%8].blocks[i].tag = tempTag;
+          cache.sets[count%8].blocks[i].valid = 1;
+        }
       }
-    }
+    }else{ //if not check to see if tag matches.
+      for (i = 0; i > 8; i++){
 
+
+        for(j=0; i > 5; i++){
+
+          if(cache.sets[i].blocks[j].tag == tempTag){
+            cache.hits++;
+            return;
+          }else{
+            cache.misses++;
+            cache.sets[i].blocks[j].tag = tempTag;
+            return;
+          }
+        }
+      }
+  }
 
 }
 
@@ -195,11 +210,11 @@ static void Interpret(int start)
         break;
       case 0x23:  reg[rt] = LoadWord(reg[rs] + simm); break;  /* lw */ // call LoadWord function
 
-        cacheAccess(count);
+        cacheAccess(addr, opcode, count);
 
       case 0x2b:  StoreWord(reg[rt], reg[rs] + simm); break;  /* sw */ // call StoreWord function
 
-        cacheAccess(count);
+        cacheAccess(addr, opcode, count);
 
       default: fprintf(stderr, "unimplemented instruction: pc = 0x%x\n", pc-4); cont = 0;
     }
@@ -246,6 +261,8 @@ int main(int argc, char *argv[])
   }
 
   printf("running %s\n\n", argv[1]);
+  createCache();
+  printCache();
   Interpret(start);
 }
 
