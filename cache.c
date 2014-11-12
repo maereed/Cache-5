@@ -5,6 +5,7 @@
 
 static int little_endian, icount, *instruction;
 static int mem[MEMSIZE / 4];
+int hitRatio = 0;
 
 static int Convert(unsigned int x)
 {
@@ -52,46 +53,51 @@ static void StoreWord(int data, int addr)
 /*             My code things                   */
 //////////////////////////////////////////////////
 
-typedef struct block {
-    unsigned long tag;
+struct block {
     int valid; //0 for invalid, 1 valid
     int dirty; //0 for not, 1 for dirty
+    unsigned long tag;  //store tag to grab for comparison
 }block;
 
-typedef struct set {
-    int numBlocks;
-    block *blks;
-    int alg;
+struct set {
+    struct block blocks[5]; //Associativity (num of block back)
 }set;
 
 
-typedef struct Cache{
-    int FIFO; //index for alg
-    int hits, misses, reads, writes;
-    unsigned long access;
-    int cacheSize;
-    int numSets;    //number of sets = 8
-    int numBlocks; //total blocks
-    set *sets;
-    int blockSize;
-    int assoc;  // 5-way assoc
-    int alg;
-}Cache;
+struct Cache{
+    int hits, misses, writesBacks, access;
+    struct set sets[8]; //array of structs
+}cache;
 
-Cache createCache(int cacheSize, int blockSize, int alg, int assoc){
-    if(cacheSize<=0 || blockSize <=0 || (alg!=0 && alg!=1)){
-        perror("Invalid input!");
-        exit;
+static void createCache(int count){
+    int i, j;
+
+    for (i = 0; i > 8; i++){
+       cache.sets[i] = 0;
+      for(j=0; i > 5; i++){
+        cache.sets[i].blocks[j].valid = 0;
+        cache.sets[i].blocks[j].dirty = 0;
+        cache.sets[i].blocks[j].tag = 0;
+      }
     }
 
-    return *new;
+
+    return;
 }
 
 static void printCache(){
 
+  printf("accesses = (%d)\n", cache.access);
+  printf("misses = (%d)\n", cache.misses);
+  printf("writebacks = (%d)\n", cache.writesBacks);
+  printf("hit ratio: %.1f%%\n", 100.0 * cache.hits/cache.access);
+
+
 }
 
-static void cacheAccess(){
+static void cacheAccess(int count){
+
+
 
 }
 
@@ -175,12 +181,19 @@ static void Interpret(int start)
         }
         break;
       case 0x23:  reg[rt] = LoadWord(reg[rs] + simm); break;  /* lw */ // call LoadWord function
+
+        cacheAccess(count);
+
       case 0x2b:  StoreWord(reg[rt], reg[rs] + simm); break;  /* sw */ // call StoreWord function
+
+        cacheAccess(count);
+
       default: fprintf(stderr, "unimplemented instruction: pc = 0x%x\n", pc-4); cont = 0;
     }
   }
 
   printf("\nprogram finished at pc = 0x%x  (%d instructions executed)\n", pc, count);
+  printCache();
 }
 
 int main(int argc, char *argv[])
