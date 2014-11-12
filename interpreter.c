@@ -83,40 +83,7 @@ Cache createCache(int cacheSize, int blockSize, int alg, int assoc){
         perror("Invalid input!");
         exit;
     }
-    Cache *new = (Cache*)malloc(sizeof(Cache));
-    //initialize all values
-    new->hits=0;
-    new->misses=0;
-    new->reads=0;
-    new->writes=0;
-    new->alg=alg;
-    new->assoc = assoc;
-    new->cacheSize=cacheSize;
-    new->blockSize=blockSize;
-    new->numBlocks=(int)(cacheSize/blockSize);
-    new->numSets=(int)(new->numBlocks/assoc);
-   // new->set->blk = (block*)malloc(sizeof(block)* new->numSets);
-        //creates array with n sets
-    if(assoc >= 1){
-            set *s = malloc(sizeof(set));
-            block *b = malloc(sizeof(block));
-            new->sets = s;
-            new->sets->blks = b;
 
-            //for each set
-            for(int x=0; x < new->numSets; x++){
-                new->sets[x] = *s;
-                new->sets[x].alg=alg;
-                new->sets[x].numBlocks = new->numBlocks;
-              //  new->sets[x] = (set*)malloc(sizeof((set* new->numLines);
-                for(int y=0; y < assoc; y++){
-                    //add for blks[y]
-                    new->sets[x].blks[y] = *b;
-                    new->sets[x].blks[y].valid = -1;
-                    new->sets[x].blks[y].tag = NULL;  //null?
-                }
-            }
-        }//end if
     return *new;
 }
 
