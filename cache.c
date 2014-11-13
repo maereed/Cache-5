@@ -69,16 +69,15 @@ struct set {
 struct Cache{
     int hits, misses, writeBacks, access;
     struct set sets[num_sets]; //array of structs
-    int fifo; //to keep track of set num
-
+    int fifo; //to keep track of assoc num
 }cache;
 
 static void createCache(){
     int i, j;
 
-    for (i = 0; i > num_sets; i++){
+    for (i = 0; i < num_sets; i++){
 
-      for(j=0; i > assoc; i++){
+      for(j=0; i < assoc; i++){
         cache.sets[i].blocks[j].valid = 0;
         cache.sets[i].blocks[j].dirty = 0;
         cache.sets[i].blocks[j].tag = 0;
@@ -108,26 +107,46 @@ static void cacheAccess(int instr, int opcode, int count){
 
     cache.access++;
     int currTag = instr >> 8 & 0x0ffffff;
-    int set_place = instr >> 5 && 0x7;
+    int set_place = instr >> 5 & 0x7;
     int i, pos;
     int found = 0;
 
-    pos = cache.fifo % assoc;
+    pos = cache.fifo % assoc;// current block position
 
-    for( i=0;i<assoc;i++ ){
-     if(opcode == 0x23){ ///LOAD/////
+
+    if(opcode == 0x23){ ///LOAD/////
+      for( i=0; i<assoc; i++ ){
         if(cache.sets[set_place].blocks[i].valid == 1 && currTag == cache.sets[set_place].blocks[i].tag){
           cache.hits++;
+          found = 1;
+          break;
         }
       }
-      if(opcode == 0x2b){ ///STORE/////
-
-      }
-      else{
+      if( found==0 ){
         cache.misses++;
         cache.sets[set_place].blocks[pos].tag = currTag;
-        cache.sets[set_place].blocks[pos].dirty = 1;
+        cache.sets[set_place].blocks[pos].dirty = 0;
         cache.sets[set_place].blocks[pos].valid = 1;
+      }
+    }
+    if(opcode == 0x2b){ ///STORE/////
+      for( i=0; i<assoc; i++ ){
+        if(cache.sets[set_place].blocks[i].valid == 1 && currTag == cache.sets[set_place].blocks[i].tag){
+          cache.hits++;
+          cache.sets[set_place].blocks[i].valid = 1;
+          cache.sets[set_place].blocks[i].dirty = 1;
+          found = 1;
+          break;
+        }
+      }
+      if( found==0 ){
+          cache.misses++;
+          pos = cache.fifo % assoc;//evict current bit
+          cache.sets[set_place].blocks[pos].tag = currTag;
+          if(cache.sets[set_place].blocks[pos].dirty == 1){
+            cache.writeBacks++;} //evict current bit
+          cache.sets[set_place].blocks[pos].dirty = 1;
+          cache.sets[set_place].blocks[pos].valid = 1;
       }
     }
     cache.fifo++;
