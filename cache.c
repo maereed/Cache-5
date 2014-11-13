@@ -83,14 +83,11 @@ static void createCache(){
         cache.sets[i].blocks[j].tag = 0;
       }
     }
-
     cache.access = 0;
     cache.misses = 0;
     cache.writeBacks = 0;
     cache.hits = 0;
     cache.fifo = 0;
-
-
 }
 
 static void printCache(){
