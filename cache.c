@@ -6,8 +6,8 @@
 static int little_endian, icount, *instruction;
 static int mem[MEMSIZE / 4];
 
-const int assoc = 5;
-const int num_sets = 8;
+#define assoc 5
+#define num_sets 8
 
 static int Convert(unsigned int x)
 {
@@ -59,11 +59,11 @@ struct block {
     int valid; //0 for invalid, 1 valid
     int dirty; //0 for not, 1 for dirty
     int tag;  //store tag to grab for comparison
-}block;
+}block_struct;
 
 struct set {
     struct block blocks[assoc]; //Associativity (num of block back)
-}set;
+}set_struct;
 
 
 struct Cache{
@@ -77,7 +77,7 @@ static void createCache(){
 
     for (i = 0; i < num_sets; i++){
 
-      for(j=0; i < assoc; i++){
+      for(j=0; j < assoc; j++){
         cache.sets[i].blocks[j].valid = 0;
         cache.sets[i].blocks[j].dirty = 0;
         cache.sets[i].blocks[j].tag = 0;
@@ -103,8 +103,8 @@ static void printCache(){
 static void cacheAccess(int instr, int opcode, int count){
 
     cache.access++;
-    int currTag = instr >> 8 & 0x0ffffff;
-    int set_place = instr >> 5 & 0x7;
+    int currTag = instr >> 8 & 0x0ffffff; //get the tag
+    int set_place = instr >> 5 & 0x7; //get the index
     int i, pos;
     int found = 0;
 
@@ -112,7 +112,7 @@ static void cacheAccess(int instr, int opcode, int count){
 
 
     if(opcode == 0x23){ ///LOAD/////
-      for( i=0; i<assoc; i++ ){
+      for( i=0; i < assoc; i++ ){
         if(cache.sets[set_place].blocks[i].valid == 1 && currTag == cache.sets[set_place].blocks[i].tag){
           cache.hits++;
           found = 1;
@@ -121,13 +121,15 @@ static void cacheAccess(int instr, int opcode, int count){
       }
       if( found==0 ){
         cache.misses++;
+        if(cache.sets[set_place].blocks[pos].dirty == 1){
+            cache.writeBacks++;} //evict current bit
         cache.sets[set_place].blocks[pos].tag = currTag;
         cache.sets[set_place].blocks[pos].dirty = 0;
         cache.sets[set_place].blocks[pos].valid = 1;
       }
     }
     if(opcode == 0x2b){ ///STORE/////
-      for( i=0; i<assoc; i++ ){
+      for( i=0; i < assoc; i++ ){
         if(cache.sets[set_place].blocks[i].valid == 1 && currTag == cache.sets[set_place].blocks[i].tag){
           cache.hits++;
           cache.sets[set_place].blocks[i].valid = 1;
@@ -138,7 +140,6 @@ static void cacheAccess(int instr, int opcode, int count){
       }
       if( found==0 ){
           cache.misses++;
-          pos = cache.fifo % assoc;//evict current bit
           cache.sets[set_place].blocks[pos].tag = currTag;
           if(cache.sets[set_place].blocks[pos].dirty == 1){
             cache.writeBacks++;} //evict current bit
@@ -158,7 +159,6 @@ static void Interpret(int start)
   register long long wide;
 
   createCache();
-  printCache();
 
   lo = hi = 0;
   pc = start;
@@ -232,12 +232,12 @@ static void Interpret(int start)
         }
         break;
       case 0x23:  reg[rt] = LoadWord(reg[rs] + simm);
-                  cacheAccess(instr, opcode, count);
+                  cacheAccess((reg[rs] + simm), opcode, count);
                   break;  /* lw */ // call LoadWord function
 
 
       case 0x2b:  StoreWord(reg[rt], reg[rs] + simm);
-                  cacheAccess(instr, opcode, count);
+                  cacheAccess((reg[rs] + simm), opcode, count);
                   break;  /* sw */ // call StoreWord function
 
 
