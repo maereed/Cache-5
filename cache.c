@@ -59,11 +59,11 @@ struct block {
     int valid; //0 for invalid, 1 valid
     int dirty; //0 for not, 1 for dirty
     int tag;  //store tag to grab for comparison
-}block_struct;
+};
 
 struct set {
     struct block blocks[assoc]; //Associativity (num of block back)
-}set_struct;
+};
 
 
 struct Cache{
@@ -100,7 +100,7 @@ static void printCache(){
 
 }
 
-static void cacheAccess(int instr, int opcode, int count){
+static void cacheAccess(int instr, int opcode){
 
     cache.access++;
     int currTag = instr >> 8 & 0x0ffffff; //get the tag
@@ -232,12 +232,12 @@ static void Interpret(int start)
         }
         break;
       case 0x23:  reg[rt] = LoadWord(reg[rs] + simm);
-                  cacheAccess((reg[rs] + simm), opcode, count);
+                  cacheAccess((reg[rs] + simm), opcodes);
                   break;  /* lw */ // call LoadWord function
 
 
       case 0x2b:  StoreWord(reg[rt], reg[rs] + simm);
-                  cacheAccess((reg[rs] + simm), opcode, count);
+                  cacheAccess((reg[rs] + simm), opcode);
                   break;  /* sw */ // call StoreWord function
 
 
