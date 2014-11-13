@@ -63,20 +63,21 @@ struct block {
 
 struct set {
     struct block blocks[assoc]; //Associativity (num of block back)
+    int fifo; //to keep track of assoc num
 };
 
 
 struct Cache{
     int hits, misses, writeBacks, access;
     struct set sets[num_sets]; //array of structs
-    int fifo; //to keep track of assoc num
+
 }cache;
 
 static void createCache(){
     int i, j;
 
     for (i = 0; i < num_sets; i++){
-
+      cache.sets[i].fifo = 0;
       for(j=0; j < assoc; j++){
         cache.sets[i].blocks[j].valid = 0;
         cache.sets[i].blocks[j].dirty = 0;
@@ -87,7 +88,7 @@ static void createCache(){
     cache.misses = 0;
     cache.writeBacks = 0;
     cache.hits = 0;
-    cache.fifo = 0;
+
 }
 
 static void printCache(){
@@ -103,12 +104,11 @@ static void printCache(){
 static void cacheAccess(int instr, int opcode){
 
     cache.access++;
-    int currTag = instr >> 8 & 0x0ffffff; //get the tag
-    int set_place = instr >> 5 & 0x7; //get the index
+    int currTag = (instr >> 8) & 0x0ffffff; //get the tag
+    int set_place = (instr >> 5) & 0x7; //get the index
     int i, pos;
     int found = 0;
 
-    pos = cache.fifo % assoc;// current block position
 
 
     if(opcode == 0x23){ ///LOAD/////
@@ -121,11 +121,14 @@ static void cacheAccess(int instr, int opcode){
       }
       if( found==0 ){
         cache.misses++;
+        pos = cache.sets[set_place].fifo % assoc;// current block position
         if(cache.sets[set_place].blocks[pos].dirty == 1){
             cache.writeBacks++;} //evict current bit
         cache.sets[set_place].blocks[pos].tag = currTag;
         cache.sets[set_place].blocks[pos].dirty = 0;
         cache.sets[set_place].blocks[pos].valid = 1;
+        cache.sets[set_place].fifo++;
+
       }
     }
     if(opcode == 0x2b){ ///STORE/////
@@ -140,14 +143,15 @@ static void cacheAccess(int instr, int opcode){
       }
       if( found==0 ){
           cache.misses++;
+          pos = cache.sets[set_place].fifo % assoc;// current block position
           cache.sets[set_place].blocks[pos].tag = currTag;
           if(cache.sets[set_place].blocks[pos].dirty == 1){
             cache.writeBacks++;} //evict current bit
           cache.sets[set_place].blocks[pos].dirty = 1;
           cache.sets[set_place].blocks[pos].valid = 1;
+          cache.sets[set_place].fifo++;
       }
     }
-    cache.fifo++;
 }
 
 static void Interpret(int start)
@@ -231,8 +235,9 @@ static void Interpret(int start)
           default: fprintf(stderr, "unimplemented trap: pc = 0x%x\n", pc-4); cont = 0;
         }
         break;
-      case 0x23:  reg[rt] = LoadWord(reg[rs] + simm);
-                  cacheAccess((reg[rs] + simm), opcodes);
+      case 0x23:  cacheAccess((reg[rs] + simm), opcode);
+                  reg[rt] = LoadWord(reg[rs] + simm);
+
                   break;  /* lw */ // call LoadWord function
 
 
