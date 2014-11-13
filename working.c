@@ -69,7 +69,7 @@ struct set {
 struct Cache{
     int hits, misses, writeBacks, access;
     struct set sets[num_sets]; //array of structs
-    int fifo; //to keep track of set num
+    int fifo[num_sets]; //to keep track of set num
 
 }cache;
 
@@ -77,6 +77,7 @@ static void createCache(){
     int i, j;
 
     for (i = 0; i > num_sets; i++){
+      cache.fifo[i] = 0;
 
       for(j=0; i > assoc; i++){
         cache.sets[i].blocks[j].valid = 0;
@@ -89,7 +90,6 @@ static void createCache(){
     cache.misses = 0;
     cache.writeBacks = 0;
     cache.hits = 0;
-    cache.fifo = 0;
 
 
 }
@@ -108,29 +108,31 @@ static void cacheAccess(int instr, int opcode, int count){
 
     cache.access++;
     int currTag = instr >> 8 & 0x0ffffff;
-    int set_place = instr >> 5 && 0x7;
-    int i, pos;
+    int i, j, set_place;
     int found = 0;
 
-    pos = cache.fifo % assoc;
+    set_place = (count) % num_sets;
 
-    for( i=0;i<assoc;i++ ){
-     if(opcode == 0x23){ ///LOAD/////
-        if(cache.sets[set_place].blocks[i].valid == 1 && currTag == cache.sets[set_place].blocks[i].tag){
-          cache.hits++;
-        }
+    for(i=0;i<assoc;i++){
+     if(cache.sets[set_place].blocks[i].tag == currTag){
+          found = 1;
+          break;
       }
-      if(opcode == 0x2b){ ///STORE/////
 
-      }
-      else{
+     if(found){
+        cache.hits++;
+        cache.sets[set_place].blocks[i].tag = currTag;
+        cache.fifo[set_place]++;
+
+      // if(cache.fifo[set_place] == asso)
+      //   cache.fifo[set_place] = 0;
+
+      }else{
         cache.misses++;
-        cache.sets[set_place].blocks[pos].tag = currTag;
-        cache.sets[set_place].blocks[pos].dirty = 1;
-        cache.sets[set_place].blocks[pos].valid = 1;
+        j = cache.fifo[set_place];
+        cache.sets[set_place].blocks[j].tag = currTag;
       }
     }
-    cache.fifo++;
 }
 
 static void Interpret(int start)
@@ -273,4 +275,3 @@ int main(int argc, char *argv[])
   printf("running %s\n\n", argv[1]);
   Interpret(start);
 }
-
