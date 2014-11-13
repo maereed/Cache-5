@@ -6,8 +6,8 @@
 static int little_endian, icount, *instruction;
 static int mem[MEMSIZE / 4];
 
-static int assoc = 5;
-static int no_sets = 8;
+const int assoc = 5;
+const int num_sets = 8;
 
 static int Convert(unsigned int x)
 {
@@ -68,15 +68,15 @@ struct set {
 
 struct Cache{
     int hits, misses, writeBacks, access;
-    struct set sets[no_sets]; //array of structs
-    int fifo[no_sets]; //to keep track of set num
+    struct set sets[num_sets]; //array of structs
+    int fifo[num_sets]; //to keep track of set num
 
 }cache;
 
 static void createCache(){
     int i, j;
 
-    for (i = 0; i > no_sets; i++){
+    for (i = 0; i > num_sets; i++){
       cache.fifo[i] = 0;
 
       for(j=0; i > assoc; i++){
@@ -108,46 +108,31 @@ static void cacheAccess(int instr, int opcode, int count){
 
     cache.access++;
     int currTag = instr >> 8 & 0x0ffffff;
-    int i, j;
+    int i, j, set_place;
     int found = 0;
 
-    set_place = (count) % no_set;
+    set_place = (count) % num_sets;
 
-      for(i=0;i<asso;i++)
-       if(cache.sets[set_place].blocks[i].tag == tag)
-        {
-            found = 1;
-            pos = i;
-        }
-      if(found)
-      {
-        hit++;
-        i = fifo[set];
-        cache.sets[set].blocks[i].tag = currTag;
-        fifo[set]++;
-      if(fifo[set] == asso)
-        fifo[set] = 0;
-                }else
-                if(alg==2)
-                {
-                    i = lru[set][0];
-                    cache[set][i] = tag;
-                    bringtotop(set,asso,i);
-
-                }
-                else
-                {
-                    r = rand() % asso;
-                    cache[set][r] = tag;
-
-                }
-
+    for(i=0;i<assoc;i++){
+     if(cache.sets[set_place].blocks[i].tag == currTag){
+          found = 1;
+          break;
       }
 
+     if(found){
+        cache.hits++;
+        cache.sets[set_place].blocks[i].tag = currTag;
+        cache.fifo[set_place]++;
 
+      // if(cache.fifo[set_place] == asso)
+      //   cache.fifo[set_place] = 0;
 
-     }
-
+      }else{
+        cache.misses++;
+        j = cache.fifo[set_place];
+        cache.sets[set_place].blocks[j].tag = currTag;
+      }
+    }
 }
 
 static void Interpret(int start)
@@ -157,6 +142,9 @@ static void Interpret(int start)
   int reg[32];
   register int cont = 1, count = 0, i;
   register long long wide;
+
+  createCache();
+  printCache();
 
   lo = hi = 0;
   pc = start;
@@ -229,17 +217,20 @@ static void Interpret(int start)
           default: fprintf(stderr, "unimplemented trap: pc = 0x%x\n", pc-4); cont = 0;
         }
         break;
-      case 0x23:  reg[rt] = LoadWord(reg[rs] + simm); break;  /* lw */ // call LoadWord function
+      case 0x23:  reg[rt] = LoadWord(reg[rs] + simm);
+                  cacheAccess(instr, opcode, count);
+                  break;  /* lw */ // call LoadWord function
 
-        cacheAccess(instr, opcode, count);
 
-      case 0x2b:  StoreWord(reg[rt], reg[rs] + simm); break;  /* sw */ // call StoreWord function
+      case 0x2b:  StoreWord(reg[rt], reg[rs] + simm);
+                  cacheAccess(instr, opcode, count);
+                  break;  /* sw */ // call StoreWord function
 
-        cacheAccess(instr, opcode, count);
 
       default: fprintf(stderr, "unimplemented instruction: pc = 0x%x\n", pc-4); cont = 0;
     }
   }
+
 
   printf("\nprogram finished at pc = 0x%x  (%d instructions executed)\n", pc, count);
   printCache();
@@ -282,8 +273,6 @@ int main(int argc, char *argv[])
   }
 
   printf("running %s\n\n", argv[1]);
-  createCache();
-  printCache();
   Interpret(start);
 }
 
